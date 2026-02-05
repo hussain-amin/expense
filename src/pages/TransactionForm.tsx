@@ -3,6 +3,7 @@ import type { Transaction } from '../types';
 import { useTransactions, useWallets, useCategories } from '../hooks/useData';
 import { FormField, FormSelect, FormActions } from '../components/FormComponents';
 import { Modal } from '../components/Modal';
+import { db } from '../db';
 import './TransactionForm.css';
 
 interface TransactionFormProps {
@@ -31,6 +32,41 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [titleSuggestions, setTitleSuggestions] = useState<string[]>([]);
+  const [debounceTimer, setDebounceTimer] = useState<number | null>(null);
+
+  // Get smart defaults for wallet and category
+  const getSmartDefaults = async (accountId: string, transactionType: Transaction['type']) => {
+    try {
+      const transactions = await db.getTransactionsByAccount(accountId);
+      
+      // Get last used wallet (most recent transaction)
+      const lastWalletId = transactions.length > 0 ? transactions[0].walletId : (wallets[0]?.id || '');
+      
+      // Get most frequently used category for this type
+      const categoryFreq = new Map<string, number>();
+      transactions
+        .filter((t: Transaction) => t.type === transactionType && t.categoryId)
+        .forEach((t: Transaction) => {
+          const count = categoryFreq.get(t.categoryId!) || 0;
+          categoryFreq.set(t.categoryId!, count + 1);
+        });
+      
+      let mostUsedCategoryId = '';
+      let maxCount = 0;
+      categoryFreq.forEach((count, catId) => {
+        if (count > maxCount) {
+          maxCount = count;
+          mostUsedCategoryId = catId;
+        }
+      });
+      
+      return { lastWalletId, mostUsedCategoryId };
+    } catch (err) {
+      console.error('Failed to get smart defaults:', err);
+      return { lastWalletId: wallets[0]?.id || '', mostUsedCategoryId: '' };
+    }
+  };
 
   // Reset form when editTransaction changes or modal opens
   React.useEffect(() => {
@@ -46,18 +82,75 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           : new Date(editTransaction.date).toISOString().split('T')[0];
         setDate(dateVal);
         setNotes(editTransaction.notes || '');
+        setTitleSuggestions([]);
       } else {
+        // Use smart defaults for new transactions
         setType('expense');
         setTitle('');
         setAmount('');
-        setWalletId(wallets[0]?.id || '');
-        setCategoryId('');
         setDate(new Date().toISOString().split('T')[0]);
         setNotes('');
+        setTitleSuggestions([]);
+        
+        if (accountId) {
+          getSmartDefaults(accountId, 'expense').then(({ lastWalletId, mostUsedCategoryId }) => {
+            setWalletId(lastWalletId);
+            setCategoryId(mostUsedCategoryId);
+          });
+        }
       }
       setErrors({});
     }
-  }, [editTransaction, isOpen, wallets]);
+  }, [editTransaction, isOpen, wallets, accountId]);
+
+  // Update smart defaults when transaction type changes
+  React.useEffect(() => {
+    if (isOpen && !editTransaction && accountId) {
+      getSmartDefaults(accountId, type).then(({ mostUsedCategoryId }) => {
+        setCategoryId(mostUsedCategoryId);
+      });
+    }
+  }, [type, isOpen, editTransaction, accountId]);
+
+  // Title autocomplete with debounce
+  const handleTitleChange = (value: string) => {
+    setTitle(value);
+    setTitleSuggestions([]);
+    
+    // Clear existing timer
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    
+    // Only search if there's input and not editing
+    if (value.trim().length >= 2 && accountId && !editTransaction) {
+      const timer = window.setTimeout(async () => {
+        try {
+          const transactions = await db.getTransactionsByAccount(accountId);
+          const uniqueTitles = new Set<string>();
+          
+          transactions
+            .filter((t: Transaction) => t.title.toLowerCase().includes(value.toLowerCase()))
+            .forEach((t: Transaction) => uniqueTitles.add(t.title));
+          
+          setTitleSuggestions(Array.from(uniqueTitles).slice(0, 5));
+        } catch (err) {
+          console.error('Failed to get title suggestions:', err);
+        }
+      }, 300);
+      
+      setDebounceTimer(timer);
+    }
+  };
+
+  // Cleanup timer on unmount
+  React.useEffect(() => {
+    return () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+    };
+  }, [debounceTimer]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -132,10 +225,27 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           label="Title"
           placeholder="e.g., Grocery shopping"
           value={title}
-          onChange={setTitle}
+          onChange={handleTitleChange}
           error={errors.title}
           required
         />
+        {titleSuggestions.length > 0 && (
+          <div className="title-suggestions">
+            {titleSuggestions.map((suggestion, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className="suggestion-item"
+                onClick={() => {
+                  setTitle(suggestion);
+                  setTitleSuggestions([]);
+                }}
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        )}
 
         <FormField
           label="Amount"

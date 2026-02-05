@@ -1,6 +1,7 @@
 .transaction-form {
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .error-alert {
@@ -12,3 +13,38 @@
   margin-bottom: 16px;
   font-size: 14px;
 }
+
+.title-suggestions {
+  position: absolute;
+  z-index: 1000;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  margin-top: -0.5rem;
+  width: calc(100% - 2rem);
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.suggestion-item {
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem;
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover,
+.suggestion-item:active {
+  background: #2a2a2a;
+}
+

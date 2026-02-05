@@ -67,6 +67,14 @@ export function useAccounts() {
 
   useEffect(() => {
     loadAccounts();
+    
+    // Listen for balance changes
+    const handleBalanceChange = () => loadAccounts();
+    window.addEventListener('walletBalanceChanged', handleBalanceChange);
+    
+    return () => {
+      window.removeEventListener('walletBalanceChanged', handleBalanceChange);
+    };
   }, [loadAccounts]);
 
   return { accounts, loading, error, addAccount, updateAccount, deleteAccount, reloadAccounts: loadAccounts };
@@ -141,6 +149,14 @@ export function useWallets(accountId: string | null) {
 
   useEffect(() => {
     loadWallets();
+    
+    // Listen for balance changes
+    const handleBalanceChange = () => loadWallets();
+    window.addEventListener('walletBalanceChanged', handleBalanceChange);
+    
+    return () => {
+      window.removeEventListener('walletBalanceChanged', handleBalanceChange);
+    };
   }, [loadWallets]);
 
   return { wallets, loading, error, addWallet, updateWallet, deleteWallet, reloadWallets: loadWallets };
@@ -251,6 +267,10 @@ export function useTransactions(accountId: string | null) {
       };
       await db.addTransaction(newTx);
       setTransactions([newTx, ...transactions]);
+      
+      // Trigger wallet/account reload by dispatching custom event
+      window.dispatchEvent(new CustomEvent('walletBalanceChanged'));
+      
       return newTx;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add transaction');
@@ -266,6 +286,10 @@ export function useTransactions(accountId: string | null) {
       const updated = { ...tx, ...updates, createdAt: tx.createdAt };
       await db.updateTransaction(updated);
       setTransactions(transactions.map(t => t.id === id ? updated : t).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      
+      // Trigger wallet/account reload
+      window.dispatchEvent(new CustomEvent('walletBalanceChanged'));
+      
       return updated;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update transaction');
@@ -277,6 +301,9 @@ export function useTransactions(accountId: string | null) {
     try {
       await db.deleteTransaction(id);
       setTransactions(transactions.filter(t => t.id !== id));
+      
+      // Trigger wallet/account reload
+      window.dispatchEvent(new CustomEvent('walletBalanceChanged'));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete transaction');
       throw err;

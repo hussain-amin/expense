@@ -24,6 +24,8 @@ export function TransactionsPage({ selectedAccountId, onSelectAccount }: Transac
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
 
   const filteredTransactions = useMemo(() => {
     let filtered = transactions;
@@ -81,15 +83,9 @@ export function TransactionsPage({ selectedAccountId, onSelectAccount }: Transac
   return (
     <div className="transactions-page">
       <header className="page-header">
-        <h1>Transactions</h1>
-        <button className="btn-primary" onClick={() => setShowForm(true)}>
-          + Add
-        </button>
-      </header>
-
-      {/* Account Selector */}
-      <div className="account-selector">
+        {/* Account Selector */}
         <select
+          className="account-select-header"
           value={selectedAccountId || ''}
           onChange={(e) => onSelectAccount(e.target.value || null)}
         >
@@ -98,7 +94,62 @@ export function TransactionsPage({ selectedAccountId, onSelectAccount }: Transac
             <option key={account.id} value={account.id}>{account.name}</option>
           ))}
         </select>
-      </div>
+        
+        {/* Action Buttons */}
+        <div className="header-actions">
+          {selectedAccountId && (
+            <>
+              <button className="btn-icon-header" onClick={() => setShowFilterMenu(!showFilterMenu)} title="Filter">
+                🔽
+              </button>
+              <button className="btn-icon-header" onClick={() => setShowSearch(!showSearch)} title="Search">
+                🔍
+              </button>
+            </>
+          )}
+          <button className="btn-primary" onClick={() => setShowForm(true)}>
+            + Add
+          </button>
+        </div>
+      </header>
+
+      {/* Search Bar (collapsible) */}
+      {showSearch && selectedAccountId && (
+        <div className="search-bar">
+          <input
+            type="search"
+            placeholder="Search transactions..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+            autoFocus
+          />
+        </div>
+      )}
+
+      {/* Filter Menu (collapsible) */}
+      {showFilterMenu && selectedAccountId && (
+        <div className="filter-menu">
+          <button
+            className={filterType === 'all' ? 'filter-option active' : 'filter-option'}
+            onClick={() => { setFilterType('all'); setShowFilterMenu(false); }}
+          >
+            All
+          </button>
+          <button
+            className={filterType === 'income' ? 'filter-option active' : 'filter-option'}
+            onClick={() => { setFilterType('income'); setShowFilterMenu(false); }}
+          >
+            Income
+          </button>
+          <button
+            className={filterType === 'expense' ? 'filter-option active' : 'filter-option'}
+            onClick={() => { setFilterType('expense'); setShowFilterMenu(false); }}
+          >
+            Expense
+          </button>
+        </div>
+      )}
 
       {selectedAccountId ? (
         <>
@@ -116,37 +167,6 @@ export function TransactionsPage({ selectedAccountId, onSelectAccount }: Transac
               <span className="stat-label">Net</span>
               <span className="stat-value">{formatCurrency(stats.net)}</span>
             </div>
-          </div>
-
-          {/* Filters */}
-          <div className="filters">
-            <div className="filter-tabs">
-              <button
-                className={filterType === 'all' ? 'active' : ''}
-                onClick={() => setFilterType('all')}
-              >
-                All
-              </button>
-              <button
-                className={filterType === 'income' ? 'active' : ''}
-                onClick={() => setFilterType('income')}
-              >
-                Income
-              </button>
-              <button
-                className={filterType === 'expense' ? 'active' : ''}
-                onClick={() => setFilterType('expense')}
-              >
-                Expense
-              </button>
-            </div>
-            <input
-              type="search"
-              placeholder="Search transactions..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
-            />
           </div>
 
           {/* Transaction List */}
