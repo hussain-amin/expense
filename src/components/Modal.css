@@ -69,5 +69,6 @@
   overflow-y: auto;
   flex: 1;
   padding: 20px;
-  padding-bottom: max(20px, env(safe-area-inset-bottom));
+  /* Extra padding at bottom for bottom nav (80px) + safe area */
+  padding-bottom: calc(100px + env(safe-area-inset-bottom));
 }
