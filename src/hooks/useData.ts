@@ -265,50 +265,69 @@ export function useTransactions(accountId: string | null) {
         id: generateId(),
         createdAt: new Date(),
       };
-      await db.addTransaction(newTx);
-      setTransactions([newTx, ...transactions]);
       
-      // Trigger wallet/account reload by dispatching custom event
-      window.dispatchEvent(new CustomEvent('walletBalanceChanged'));
+      await db.addTransaction(newTx);
+      setTransactions(prev => [newTx, ...prev]);
+      
+      // Trigger wallet/account reload by dispatching custom event (deferred)
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('walletBalanceChanged'));
+      }, 0);
       
       return newTx;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add transaction');
+      console.error('Error in addTransaction:', err);
       throw err;
     }
-  }, [transactions]);
+  }, []);
 
   const updateTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
     try {
-      const tx = transactions.find(t => t.id === id);
-      if (!tx) throw new Error('Transaction not found');
+      let updated: Transaction | undefined;
       
-      const updated = { ...tx, ...updates, createdAt: tx.createdAt };
+      setTransactions(prev => {
+        const tx = prev.find(t => t.id === id);
+        if (!tx) {
+          console.error('Transaction not found:', id);
+          return prev;
+        }
+        
+        updated = { ...tx, ...updates, createdAt: tx.createdAt };
+        return prev.map(t => t.id === id ? updated! : t).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      });
+      
+      if (!updated) {
+        throw new Error('Transaction not found');
+      }
+      
       await db.updateTransaction(updated);
-      setTransactions(transactions.map(t => t.id === id ? updated : t).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       
-      // Trigger wallet/account reload
-      window.dispatchEvent(new CustomEvent('walletBalanceChanged'));
+      // Trigger wallet/account reload (deferred)
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('walletBalanceChanged'));
+      }, 0);
       
       return updated;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update transaction');
+      console.error('Error in updateTransaction:', err);
       throw err;
     }
-  }, [transactions]);
+  }, []);
 
   const deleteTransaction = useCallback(async (id: string) => {
     try {
       await db.deleteTransaction(id);
-      setTransactions(transactions.filter(t => t.id !== id));
+      setTransactions(prev => prev.filter(t => t.id !== id));
       
-      // Trigger wallet/account reload
-      window.dispatchEvent(new CustomEvent('walletBalanceChanged'));
+      // Trigger wallet/account reload (deferred)
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('walletBalanceChanged'));
+      }, 0);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete transaction');
+      console.error('Error in deleteTransaction:', err);
       throw err;
     }
-  }, [transactions]);
+  }, []);
 
   useEffect(() => {
     loadTransactions();

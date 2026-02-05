@@ -230,21 +230,24 @@ class Database {
       // Add transaction
       const addRequest = tx.objectStore('transactions').add(transaction);
       
-      addRequest.onsuccess = async () => {
-        // Update wallet balance
-        try {
-          const wallet = await this.getWallet(transaction.walletId);
+      addRequest.onsuccess = () => {
+        // Update wallet balance synchronously within the same transaction
+        const walletStore = tx.objectStore('wallets');
+        const getWalletRequest = walletStore.get(transaction.walletId);
+        
+        getWalletRequest.onsuccess = () => {
+          const wallet = getWalletRequest.result;
           if (wallet) {
             wallet.balance += transaction.amount;
-            const updateRequest = tx.objectStore('wallets').put(wallet);
+            const updateRequest = walletStore.put(wallet);
             updateRequest.onsuccess = () => resolve();
             updateRequest.onerror = () => reject(updateRequest.error);
           } else {
             resolve();
           }
-        } catch (err) {
-          reject(err);
-        }
+        };
+        
+        getWalletRequest.onerror = () => reject(getWalletRequest.error);
       };
       
       addRequest.onerror = () => reject(addRequest.error);
@@ -253,68 +256,121 @@ class Database {
 
   async updateTransaction(transaction: Transaction): Promise<void> {
     const db = this.ensureDb();
+    
+    // First get the old transaction outside of the write transaction
+    const oldTx = await this.getTransaction(transaction.id);
+    
+    // Now perform all updates in one transaction
     const tx = db.transaction(['transactions', 'wallets'], 'readwrite');
     
-    return new Promise(async (resolve, reject) => {
-      try {
-        // Get old transaction to calculate balance difference
-        const oldTx = await this.getTransaction(transaction.id);
-        
-        if (oldTx && oldTx.walletId === transaction.walletId) {
-          // Same wallet, adjust balance by difference
-          const wallet = await this.getWallet(transaction.walletId);
-          if (wallet) {
-            wallet.balance = wallet.balance - oldTx.amount + transaction.amount;
-            tx.objectStore('wallets').put(wallet);
-          }
-        } else if (oldTx) {
-          // Different wallet, update both
-          const oldWallet = await this.getWallet(oldTx.walletId);
-          const newWallet = await this.getWallet(transaction.walletId);
-          
-          if (oldWallet) {
-            oldWallet.balance -= oldTx.amount;
-            tx.objectStore('wallets').put(oldWallet);
-          }
-          
-          if (newWallet) {
-            newWallet.balance += transaction.amount;
-            tx.objectStore('wallets').put(newWallet);
-          }
+    return new Promise((resolve, reject) => {
+      const transactionStore = tx.objectStore('transactions');
+      const walletStore = tx.objectStore('wallets');
+      
+      // Update the transaction first
+      const updateRequest = transactionStore.put(transaction);
+      
+      updateRequest.onsuccess = () => {
+        if (!oldTx) {
+          resolve();
+          return;
         }
         
-        const updateRequest = tx.objectStore('transactions').put(transaction);
-        updateRequest.onsuccess = () => resolve();
-        updateRequest.onerror = () => reject(updateRequest.error);
-      } catch (err) {
-        reject(err);
-      }
+        if (oldTx.walletId === transaction.walletId) {
+          // Same wallet, adjust balance by difference
+          const getWalletRequest = walletStore.get(transaction.walletId);
+          
+          getWalletRequest.onsuccess = () => {
+            const wallet = getWalletRequest.result;
+            if (wallet) {
+              wallet.balance = wallet.balance - oldTx.amount + transaction.amount;
+              const putRequest = walletStore.put(wallet);
+              putRequest.onsuccess = () => resolve();
+              putRequest.onerror = () => reject(putRequest.error);
+            } else {
+              resolve();
+            }
+          };
+          
+          getWalletRequest.onerror = () => reject(getWalletRequest.error);
+        } else {
+          // Different wallets - update both
+          const getOldWalletRequest = walletStore.get(oldTx.walletId);
+          
+          getOldWalletRequest.onsuccess = () => {
+            const oldWallet = getOldWalletRequest.result;
+            if (oldWallet) {
+              oldWallet.balance -= oldTx.amount;
+              walletStore.put(oldWallet);
+            }
+            
+            // Now get and update new wallet
+            const getNewWalletRequest = walletStore.get(transaction.walletId);
+            
+            getNewWalletRequest.onsuccess = () => {
+              const newWallet = getNewWalletRequest.result;
+              if (newWallet) {
+                newWallet.balance += transaction.amount;
+                const putRequest = walletStore.put(newWallet);
+                putRequest.onsuccess = () => resolve();
+                putRequest.onerror = () => reject(putRequest.error);
+              } else {
+                resolve();
+              }
+            };
+            
+            getNewWalletRequest.onerror = () => reject(getNewWalletRequest.error);
+          };
+          
+          getOldWalletRequest.onerror = () => reject(getOldWalletRequest.error);
+        }
+      };
+      
+      updateRequest.onerror = () => reject(updateRequest.error);
     });
   }
 
   async deleteTransaction(transactionId: string): Promise<void> {
     const db = this.ensureDb();
+    
+    // First get the transaction outside of the write transaction
+    const transaction = await this.getTransaction(transactionId);
+    
+    // Now perform all updates in one transaction
     const tx = db.transaction(['transactions', 'wallets'], 'readwrite');
     
-    return new Promise(async (resolve, reject) => {
-      try {
-        // Get transaction to update wallet balance
-        const transaction = await this.getTransaction(transactionId);
-        
-        if (transaction) {
-          const wallet = await this.getWallet(transaction.walletId);
-          if (wallet) {
-            wallet.balance -= transaction.amount;
-            tx.objectStore('wallets').put(wallet);
-          }
+    return new Promise((resolve, reject) => {
+      const transactionStore = tx.objectStore('transactions');
+      const walletStore = tx.objectStore('wallets');
+      
+      // Delete the transaction first
+      const deleteRequest = transactionStore.delete(transactionId);
+      
+      deleteRequest.onsuccess = () => {
+        if (!transaction) {
+          resolve();
+          return;
         }
         
-        const deleteRequest = tx.objectStore('transactions').delete(transactionId);
-        deleteRequest.onsuccess = () => resolve();
-        deleteRequest.onerror = () => reject(deleteRequest.error);
-      } catch (err) {
-        reject(err);
-      }
+        // Update wallet balance
+        const getWalletRequest = walletStore.get(transaction.walletId);
+        
+        getWalletRequest.onsuccess = () => {
+          const wallet = getWalletRequest.result;
+          if (wallet) {
+            wallet.balance -= transaction.amount;
+            const putRequest = walletStore.put(wallet);
+            putRequest.onsuccess = () => resolve();
+            putRequest.onerror = () => reject(putRequest.error);
+          } else {
+            resolve();
+          }
+        };
+        
+        getWalletRequest.onerror = () => reject(getWalletRequest.error);
+      };
+      
+      deleteRequest.onerror = () => reject(deleteRequest.error);
     });
   }
 

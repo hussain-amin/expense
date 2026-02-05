@@ -92,10 +92,16 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         setNotes('');
         setTitleSuggestions([]);
         
+        // Set wallet immediately with fallback
+        const defaultWalletId = wallets[0]?.id || '';
+        setWalletId(defaultWalletId);
+        setCategoryId('');
+        
+        // Then try to get smart defaults
         if (accountId) {
           getSmartDefaults(accountId, 'expense').then(({ lastWalletId, mostUsedCategoryId }) => {
-            setWalletId(lastWalletId);
-            setCategoryId(mostUsedCategoryId);
+            if (lastWalletId) setWalletId(lastWalletId);
+            if (mostUsedCategoryId) setCategoryId(mostUsedCategoryId);
           });
         }
       }
@@ -107,7 +113,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   React.useEffect(() => {
     if (isOpen && !editTransaction && accountId) {
       getSmartDefaults(accountId, type).then(({ mostUsedCategoryId }) => {
-        setCategoryId(mostUsedCategoryId);
+        if (mostUsedCategoryId) setCategoryId(mostUsedCategoryId);
       });
     }
   }, [type, isOpen, editTransaction, accountId]);
@@ -150,7 +156,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         clearTimeout(debounceTimer);
       }
     };
-  }, [debounceTimer]);
+  }, []); // Empty deps - only cleanup on unmount
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -165,35 +171,45 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const handleSubmit = async () => {
     if (!validate() || !accountId) return;
 
-    try {
-      setLoading(true);
-      const transactionData: Omit<Transaction, 'id' | 'createdAt'> = {
-        accountId,
-        walletId,
-        type,
-        title,
-        amount: type === 'expense' ? -Math.abs(parseFloat(amount.toString())) : parseFloat(amount.toString()),
-        date: new Date(date),
-        categoryId: type !== 'transfer' ? categoryId : undefined,
-        notes: notes || undefined,
-      };
+    setLoading(true);
+    setErrors({}); // Clear any previous errors
+    
+    const transactionData: Omit<Transaction, 'id' | 'createdAt'> = {
+      accountId,
+      walletId,
+      type,
+      title,
+      amount: type === 'expense' ? -Math.abs(parseFloat(amount.toString())) : parseFloat(amount.toString()),
+      date: new Date(date),
+      categoryId: type !== 'transfer' ? categoryId : undefined,
+      notes: notes || undefined,
+    };
 
+    try {
       if (editTransaction) {
         await updateTransaction(editTransaction.id, transactionData);
       } else {
         await addTransaction(transactionData);
       }
-      handleClose();
     } catch (err) {
       console.error('Failed to save transaction:', err);
       setErrors({ submit: 'Failed to save transaction' });
-    } finally {
       setLoading(false);
+      return;
     }
+    
+    // Close modal and reset loading on success
+    setLoading(false);
+    onClose();
   };
 
   const handleClose = () => {
     setErrors({});
+    setTitleSuggestions([]);
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      setDebounceTimer(null);
+    }
     onClose();
   };
 
