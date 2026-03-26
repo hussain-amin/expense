@@ -283,24 +283,15 @@ export function useTransactions(accountId: string | null) {
 
   const updateTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
     try {
-      let updated: Transaction | undefined;
-      
-      setTransactions(prev => {
-        const tx = prev.find(t => t.id === id);
-        if (!tx) {
-          console.error('Transaction not found:', id);
-          return prev;
-        }
-        
-        updated = { ...tx, ...updates, createdAt: tx.createdAt };
-        return prev.map(t => t.id === id ? updated! : t).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      });
-      
-      if (!updated) {
-        throw new Error('Transaction not found');
-      }
-      
+      const tx = await db.getTransaction(id);
+      if (!tx) throw new Error('Transaction not found');
+
+      const updated = { ...tx, ...updates, createdAt: tx.createdAt };
       await db.updateTransaction(updated);
+
+      setTransactions(prev =>
+        prev.map(t => t.id === id ? updated : t).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      );
       
       // Trigger wallet/account reload (deferred)
       setTimeout(() => {
