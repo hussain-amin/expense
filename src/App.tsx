@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { db } from './db';
 import { Dashboard } from './pages/Dashboard';
 import { TransactionsPage } from './pages/TransactionsPage';
-import { WalletsPage } from './pages/WalletsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { StatisticsPage } from './pages/StatisticsPage';
 import { AccountForm } from './pages/AccountForm';
@@ -11,7 +10,7 @@ import './App.css';
 
 function App() {
   const [dbReady, setDbReady] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'transactions' | 'wallets' | 'settings' | 'statistics'>('dashboard');
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'transactions' | 'statistics' | 'settings'>('dashboard');
   const [showAccountForm, setShowAccountForm] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
 
@@ -42,7 +41,6 @@ function App() {
     { id: 'dashboard', label: 'Dashboard', icon: '📊', active: currentPage === 'dashboard' },
     { id: 'transactions', label: 'Transactions', icon: '💸', active: currentPage === 'transactions' },
     { id: 'statistics', label: 'Statistics', icon: '📈', active: currentPage === 'statistics' },
-    { id: 'wallets', label: 'Wallets', icon: '👛', active: currentPage === 'wallets' },
     { id: 'settings', label: 'Settings', icon: '⚙️', active: currentPage === 'settings' },
   ];
 
@@ -83,13 +81,7 @@ function App() {
             onSelectAccount={setSelectedAccountId}
           />
         )}
-        {currentPage === 'wallets' && (
-          <WalletsPage
-            selectedAccountId={selectedAccountId}
-            onSelectAccount={setSelectedAccountId}
-          />
-        )}
-        {currentPage === 'settings' && (
+{currentPage === 'settings' && (
           <SettingsPage
             selectedAccountId={selectedAccountId}
             onSelectAccount={setSelectedAccountId}

@@ -10,43 +10,33 @@ const FALLBACK_COLORS = [
   '#06b6d4', '#a855f7', '#ec4899', '#84cc16',
 ];
 
-interface DonutSegment {
-  color: string;
-  fraction: number;
-}
+interface DonutSegment { color: string; fraction: number; }
 
 function DonutChart({ segments, total }: { segments: DonutSegment[]; total: number }) {
-  const cx = 75, cy = 75, r = 54, strokeWidth = 22;
-  const circumference = 2 * Math.PI * r;
+  const cx = 80, cy = 80, r = 60, sw = 24;
+  const circ = 2 * Math.PI * r;
   const gap = segments.length > 1 ? 2 : 0;
-
   let offset = 0;
   const arcs = segments.map(seg => {
-    const dash = Math.max(0, seg.fraction * circumference - gap);
-    const arc = { color: seg.color, dash, gap, offset };
-    offset += seg.fraction * circumference;
+    const dash = Math.max(0, seg.fraction * circ - gap);
+    const arc = { color: seg.color, dash, offset };
+    offset += seg.fraction * circ;
     return arc;
   });
 
   return (
-    <svg width="150" height="150" viewBox="0 0 150 150">
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#222" strokeWidth={strokeWidth} />
+    <svg width="160" height="160" viewBox="0 0 160 160">
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#252525" strokeWidth={sw} />
       {arcs.map((arc, i) => (
-        <circle
-          key={i}
-          cx={cx}
-          cy={cy}
-          r={r}
-          fill="none"
-          stroke={arc.color}
-          strokeWidth={strokeWidth}
-          strokeDasharray={`${arc.dash} ${circumference}`}
+        <circle key={i} cx={cx} cy={cy} r={r} fill="none"
+          stroke={arc.color} strokeWidth={sw}
+          strokeDasharray={`${arc.dash} ${circ}`}
           strokeDashoffset={-arc.offset}
           style={{ transform: 'rotate(-90deg)', transformOrigin: `${cx}px ${cy}px` }}
         />
       ))}
-      <text x={cx} y={cy - 8} textAnchor="middle" fill="#888" fontSize="11">Expense</text>
-      <text x={cx} y={cy + 10} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="600">
+      <text x={cx} y={cy - 7} textAnchor="middle" fill="#777" fontSize="10.5">Expense</text>
+      <text x={cx} y={cx + 11} textAnchor="middle" fill="#fff" fontSize="13" fontWeight="700">
         -{formatCurrency(total)}
       </text>
     </svg>
@@ -71,9 +61,8 @@ export function StatisticsPage({ selectedAccountId, onSelectAccount }: Statistic
     if (mode === 'alltime') return transactions;
     return transactions.filter(tx => {
       const d = new Date(tx.date);
-      if (mode === 'monthly') {
+      if (mode === 'monthly')
         return d.getMonth() === currentDate.getMonth() && d.getFullYear() === currentDate.getFullYear();
-      }
       return d.getFullYear() === currentDate.getFullYear();
     });
   }, [transactions, mode, currentDate]);
@@ -94,9 +83,7 @@ export function StatisticsPage({ selectedAccountId, onSelectAccount }: Statistic
       const id = t.categoryId || '__none__';
       map.set(id, (map.get(id) || 0) + Math.abs(t.amount));
     });
-
     if (stats.expense === 0) return [];
-
     return Array.from(map.entries())
       .map(([catId, amount], i) => {
         const cat = categories.find(c => c.id === catId);
@@ -113,108 +100,95 @@ export function StatisticsPage({ selectedAccountId, onSelectAccount }: Statistic
 
   const goPrev = () => {
     const d = new Date(currentDate);
-    if (mode === 'monthly') d.setMonth(d.getMonth() - 1);
-    else d.setFullYear(d.getFullYear() - 1);
+    mode === 'monthly' ? d.setMonth(d.getMonth() - 1) : d.setFullYear(d.getFullYear() - 1);
     setCurrentDate(d);
   };
-
   const goNext = () => {
     const d = new Date(currentDate);
-    if (mode === 'monthly') d.setMonth(d.getMonth() + 1);
-    else d.setFullYear(d.getFullYear() + 1);
+    mode === 'monthly' ? d.setMonth(d.getMonth() + 1) : d.setFullYear(d.getFullYear() + 1);
     setCurrentDate(d);
   };
 
   const periodLabel =
-    mode === 'alltime'
-      ? 'All Time'
-      : mode === 'yearly'
-      ? String(currentDate.getFullYear())
-      : currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    mode === 'alltime' ? 'All Time'
+    : mode === 'yearly' ? String(currentDate.getFullYear())
+    : currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
   return (
     <div className="stats-page">
-      {/* Account selector */}
-      <header className="stats-header">
+      {/* Row 1: account selector + period mode */}
+      <div className="stats-topbar">
         <select
-          className="account-select-header"
+          className="stats-account-select"
           value={selectedAccountId || ''}
           onChange={e => onSelectAccount(e.target.value || null)}
         >
-          <option value="">Select Account</option>
-          {accounts.map(a => (
-            <option key={a.id} value={a.id}>{a.name}</option>
-          ))}
+          <option value="">Select account</option>
+          {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
-      </header>
 
-      {/* Period mode tabs */}
-      <div className="period-tabs">
-        {(['monthly', 'yearly', 'alltime'] as PeriodMode[]).map(m => (
-          <button
-            key={m}
-            className={`period-tab${mode === m ? ' active' : ''}`}
-            onClick={() => setMode(m)}
-          >
-            {m === 'monthly' ? 'Monthly' : m === 'yearly' ? 'Yearly' : 'All Time'}
-          </button>
-        ))}
+        <div className="period-pills">
+          {(['monthly', 'yearly', 'alltime'] as PeriodMode[]).map(m => (
+            <button
+              key={m}
+              className={`period-pill${mode === m ? ' active' : ''}`}
+              onClick={() => setMode(m)}
+            >
+              {m === 'monthly' ? 'Mo' : m === 'yearly' ? 'Yr' : 'All'}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Period navigation */}
-      <div className="period-nav">
-        {mode !== 'alltime' && (
+      {/* Row 2: period navigation (hidden for alltime) */}
+      {mode !== 'alltime' && (
+        <div className="period-nav">
           <button className="period-arrow" onClick={goPrev}>‹</button>
-        )}
-        <span className="period-label">{periodLabel}</span>
-        {mode !== 'alltime' && (
+          <span className="period-label">{periodLabel}</span>
           <button className="period-arrow" onClick={goNext}>›</button>
-        )}
-      </div>
+        </div>
+      )}
 
       {selectedAccountId ? (
         <div className="stats-scroll">
-          {/* Balance */}
+
+          {/* Compact summary strip */}
+          <div className="summary-strip">
+            <div className="summary-cell">
+              <span className="summary-val summary-val--income">+{formatCurrency(stats.income)}</span>
+              <span className="summary-key">Income</span>
+            </div>
+            <div className="summary-divider" />
+            <div className="summary-cell">
+              <span className="summary-val summary-val--expense">-{formatCurrency(stats.expense)}</span>
+              <span className="summary-key">Expense</span>
+            </div>
+            <div className="summary-divider" />
+            <div className="summary-cell">
+              <span className={`summary-val${stats.net < 0 ? ' summary-val--expense' : ' summary-val--income'}`}>
+                {stats.net >= 0 ? '+' : ''}{formatCurrency(stats.net)}
+              </span>
+              <span className="summary-key">Net</span>
+            </div>
+          </div>
+
+          {/* Balance row (compact, only for period views) */}
           {mode !== 'alltime' && (
-            <section className="stats-card">
-              <h2 className="stats-card-title">Balance</h2>
-              <div className="balance-row">
-                <div>
-                  <div className="balance-label">Opening balance</div>
-                  <div className="balance-amount">{formatCurrency(openingBalance)}</div>
-                </div>
-                <div className="balance-right">
-                  <div className="balance-label">Ending balance</div>
-                  <div className="balance-amount">{formatCurrency(endingBalance)}</div>
-                </div>
-              </div>
-            </section>
+            <div className="balance-strip">
+              <span className="balance-strip-item">
+                <span className="balance-strip-label">Open </span>
+                <span className="balance-strip-val">{formatCurrency(openingBalance)}</span>
+              </span>
+              <span className="balance-strip-arrow">→</span>
+              <span className="balance-strip-item">
+                <span className="balance-strip-label">Close </span>
+                <span className="balance-strip-val">{formatCurrency(endingBalance)}</span>
+              </span>
+            </div>
           )}
 
-          {/* Overview */}
-          <section className="stats-card">
-            <h2 className="stats-card-title">Overview</h2>
-            <div className="overview-list">
-              <div className="overview-row">
-                <span className="overview-label">Income</span>
-                <span className="overview-income">+{formatCurrency(stats.income)}</span>
-              </div>
-              <div className="overview-row">
-                <span className="overview-label">Expense</span>
-                <span className="overview-expense">-{formatCurrency(stats.expense)}</span>
-              </div>
-              <div className="overview-divider" />
-              <div className="overview-row">
-                <span className="overview-label overview-label--bold">Net</span>
-                <span className={`overview-net${stats.net < 0 ? ' overview-net--negative' : ''}`}>
-                  {stats.net >= 0 ? '+' : ''}{formatCurrency(stats.net)}
-                </span>
-              </div>
-            </div>
-          </section>
-
-          {/* Expense structure */}
-          {categoryBreakdown.length > 0 && (
+          {/* Expense structure — main focus */}
+          {categoryBreakdown.length > 0 ? (
             <section className="stats-card">
               <h2 className="stats-card-title">Expense Structure</h2>
               <div className="expense-structure">
@@ -235,11 +209,12 @@ export function StatisticsPage({ selectedAccountId, onSelectAccount }: Statistic
                 </div>
               </div>
             </section>
+          ) : (
+            <div className="stats-empty">
+              {filtered.length === 0 ? 'No transactions in this period' : 'No expenses in this period'}
+            </div>
           )}
 
-          {filtered.length === 0 && (
-            <div className="stats-empty">No transactions in this period</div>
-          )}
         </div>
       ) : (
         <div className="stats-empty">Select an account to view statistics</div>
