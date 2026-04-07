@@ -1,9 +1,8 @@
 import { useState, useMemo } from 'react';
-import type { Transaction, Category, Wallet } from '../types';
+import type { Transaction, Category } from '../types';
 import { useAccounts } from '../hooks/useData';
 import { useTransactions } from '../hooks/useData';
 import { useCategories } from '../hooks/useData';
-import { useWallets } from '../hooks/useData';
 import { TransactionItem } from '../components/TransactionItem';
 import { TransactionForm } from './TransactionForm';
 import { formatCurrency, groupTransactionsByDate } from '../utils/helpers';
@@ -18,7 +17,6 @@ export function TransactionsPage({ selectedAccountId, onSelectAccount }: Transac
   const { accounts } = useAccounts();
   const { transactions, deleteTransaction, reloadTransactions } = useTransactions(selectedAccountId);
   const { categories } = useCategories(selectedAccountId);
-  const { wallets } = useWallets(selectedAccountId);
   
   const [showForm, setShowForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -57,10 +55,6 @@ export function TransactionsPage({ selectedAccountId, onSelectAccount }: Transac
 
   const getCategoryById = (id?: string): Category | undefined => {
     return categories.find(c => c.id === id);
-  };
-
-  const getWalletById = (id: string): Wallet | undefined => {
-    return wallets.find(w => w.id === id);
   };
 
   const handleEdit = (transaction: Transaction) => {
@@ -187,7 +181,6 @@ export function TransactionsPage({ selectedAccountId, onSelectAccount }: Transac
                       key={transaction.id}
                       transaction={transaction}
                       category={getCategoryById(transaction.categoryId)}
-                      wallet={getWalletById(transaction.walletId)}
                       onEdit={() => handleEdit(transaction)}
                       onDelete={() => handleDelete(transaction)}
                     />

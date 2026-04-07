@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAccounts, useWallets, useTransactions, useCategories } from '../hooks/useData';
+import { useAccounts, useTransactions, useCategories } from '../hooks/useData';
 import { AccountCard } from '../components/AccountCard';
 import { TransactionItem } from '../components/TransactionItem';
 import { TransactionForm } from './TransactionForm';
@@ -22,7 +22,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
 
-  const { wallets, loading: walletsLoading } = useWallets(selectedAccountId);
   const { transactions, loading: txLoading, reloadTransactions } = useTransactions(selectedAccountId);
   const { categories } = useCategories(selectedAccountId);
 
@@ -87,24 +86,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
           {selectedAccount && (
             <div className="account-details">
               <h2>{selectedAccount.name}</h2>
-
-              {/* Wallets Section */}
-              {walletsLoading ? (
-                <div className="loading">Loading wallets...</div>
-              ) : wallets.length > 0 && (
-                <div className="section">
-                  <h3>Wallets</h3>
-                  <div className="wallets-grid">
-                    {wallets.map(wallet => (
-                      <div key={wallet.id} className="wallet-card">
-                        <span className="wallet-type">{wallet.type}</span>
-                        <span className="wallet-name">{wallet.name}</span>
-                        <span className="wallet-balance">{formatCurrency(wallet.balance)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Statistics Section */}
               {transactions.length > 0 && (

@@ -1,22 +1,16 @@
 import React from 'react';
-import type { Transaction, Category, Wallet } from '../types';
+import type { Transaction, Category } from '../types';
 import { formatCurrency, formatTransactionDate } from '../utils/helpers';
 import './TransactionItem.css';
 
 interface TransactionItemProps {
   transaction: Transaction;
   category?: Category;
-  wallet?: Wallet;
   onEdit?: () => void;
   onDelete?: () => void;
 }
 
-export const TransactionItem: React.FC<TransactionItemProps> = ({
-  transaction,
-  category,
-  onEdit,
-  onDelete,
-}) => {
+export const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, category, onEdit, onDelete }) => {
   const isIncome = transaction.type === 'income' || (transaction.type === 'transfer' && transaction.amount > 0);
   const isExpense = transaction.type === 'expense' || (transaction.type === 'transfer' && transaction.amount < 0);
 

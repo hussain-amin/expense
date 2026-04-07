@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useAccounts, useTransactions, useCategories, useWallets } from '../hooks/useData';
+import { useAccounts, useTransactions, useCategories } from '../hooks/useData';
 import { formatCurrency } from '../utils/helpers';
 import './StatisticsPage.css';
 
@@ -52,7 +52,6 @@ export function StatisticsPage({ selectedAccountId, onSelectAccount }: Statistic
   const { accounts } = useAccounts();
   const { transactions } = useTransactions(selectedAccountId);
   const { categories } = useCategories(selectedAccountId);
-  const { wallets } = useWallets(selectedAccountId);
 
   const [mode, setMode] = useState<PeriodMode>('monthly');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -73,7 +72,10 @@ export function StatisticsPage({ selectedAccountId, onSelectAccount }: Statistic
     return { income, expense, net: income - expense };
   }, [filtered]);
 
-  const endingBalance = useMemo(() => wallets.reduce((s, w) => s + w.balance, 0), [wallets]);
+  const endingBalance = useMemo(
+    () => accounts.find(a => a.id === selectedAccountId)?.balance ?? 0,
+    [accounts, selectedAccountId]
+  );
   const netInPeriod = useMemo(() => filtered.reduce((s, t) => s + t.amount, 0), [filtered]);
   const openingBalance = endingBalance - netInPeriod;
 

@@ -1,22 +1,7 @@
-import type { Transaction, Wallet } from '../types';
+import type { Transaction } from '../types';
 
 export function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-export function calculateWalletBalance(transactions: Transaction[]): number {
-  return transactions.reduce((balance, tx) => {
-    if (tx.type === 'income' || (tx.type === 'transfer' && tx.amount > 0)) {
-      return balance + tx.amount;
-    } else if (tx.type === 'expense' || (tx.type === 'transfer' && tx.amount < 0)) {
-      return balance + tx.amount;
-    }
-    return balance;
-  }, 0);
-}
-
-export function calculateAccountBalance(wallets: Wallet[]): number {
-  return wallets.reduce((total, wallet) => total + wallet.balance, 0);
 }
 
 export function formatCurrency(amount: number, currency: string = 'USD'): string {

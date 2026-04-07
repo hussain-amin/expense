@@ -34,7 +34,7 @@ export interface Category {
 export interface Transaction {
   id: string;
   accountId: string;
-  walletId: string;
+  walletId?: string; // legacy field, kept for backward compat with existing data
   type: 'income' | 'expense' | 'transfer';
   title: string;
   amount: number;

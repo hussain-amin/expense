@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /c/Users/hussa/Desktop/expense/src/**/*.tsx /c/Users/hussa/Desktop/expense/src/**/*.ts)",
+      "Bash(npm run:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import type { Account, Wallet, Category, Transaction } from '../types';
+import type { Account, Category, Transaction } from '../types';
 import { db } from '../db';
 import { generateId } from '../utils/helpers';
 
@@ -80,87 +80,6 @@ export function useAccounts() {
   return { accounts, loading, error, addAccount, updateAccount, deleteAccount, reloadAccounts: loadAccounts };
 }
 
-export function useWallets(accountId: string | null) {
-  const [wallets, setWallets] = useState<Wallet[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadWallets = useCallback(async () => {
-    if (!accountId) {
-      setWallets([]);
-      return;
-    }
-    try {
-      setLoading(true);
-      const data = await db.getWalletsByAccount(accountId);
-      setWallets(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load wallets');
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId]);
-
-  const addWallet = useCallback(async (name: string, type: Wallet['type']) => {
-    if (!accountId) throw new Error('No account selected');
-    try {
-      const wallet: Wallet = {
-        id: generateId(),
-        accountId,
-        name,
-        type,
-        balance: 0,
-        createdAt: new Date(),
-      };
-      await db.addWallet(wallet);
-      setWallets([wallet, ...wallets]);
-      return wallet;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add wallet');
-      throw err;
-    }
-  }, [accountId, wallets]);
-
-  const updateWallet = useCallback(async (id: string, updates: Partial<Wallet>) => {
-    try {
-      const wallet = wallets.find(w => w.id === id);
-      if (!wallet) throw new Error('Wallet not found');
-      
-      const updated = { ...wallet, ...updates, createdAt: wallet.createdAt };
-      await db.updateWallet(updated);
-      setWallets(wallets.map(w => w.id === id ? updated : w));
-      return updated;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update wallet');
-      throw err;
-    }
-  }, [wallets]);
-
-  const deleteWallet = useCallback(async (id: string) => {
-    try {
-      await db.deleteWallet(id);
-      setWallets(wallets.filter(w => w.id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete wallet');
-      throw err;
-    }
-  }, [wallets]);
-
-  useEffect(() => {
-    loadWallets();
-    
-    // Listen for balance changes
-    const handleBalanceChange = () => loadWallets();
-    window.addEventListener('walletBalanceChanged', handleBalanceChange);
-    
-    return () => {
-      window.removeEventListener('walletBalanceChanged', handleBalanceChange);
-    };
-  }, [loadWallets]);
-
-  return { wallets, loading, error, addWallet, updateWallet, deleteWallet, reloadWallets: loadWallets };
-}
 
 export function useCategories(accountId: string | null) {
   const [categories, setCategories] = useState<Category[]>([]);
